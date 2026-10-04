@@ -12,7 +12,7 @@ from db import (
     get_all_users,
     get_all_groups,
     add_admin,
-    remove_admin,  # Bazadan adminni o'chirish uchun
+    remove_admin,
     save_sent_ad,
     get_and_clear_last_ads
 )
@@ -26,7 +26,7 @@ class UnadminState(StatesGroup):
 
 @admin_router.message(Command("botusers"))
 async def bot_users_cmd(message: Message):
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    if not is_admin(message.from_user.id):
         return
 
     s = get_user_stats()
@@ -44,7 +44,7 @@ async def bot_users_cmd(message: Message):
 
 @admin_router.message(Command("botgroups"))
 async def bot_groups_cmd(message: Message):
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    if not is_admin(message.from_user.id):
         return
 
     groups = get_all_groups()
@@ -54,13 +54,14 @@ async def bot_groups_cmd(message: Message):
 
     res = "📋 <b>Guruhlar ro'yxati:</b>\n\n"
     for g_id, title in groups:
-        res += f"• {title} (ID: {g_id})\n"
+        res += f"• {title} (ID: <code>{g_id}</code>)\n"
     await message.answer(res, parse_mode="HTML")
 
 
 @admin_router.message(Command("addadmin"))
 async def add_admin_cmd(message: Message):
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    # Faqat asosiy egasi (ADMIN_ID) yangi admin qo'sha oladi
+    if message.from_user.id != ADMIN_ID:
         return
 
     args = message.text.split()
@@ -79,16 +80,23 @@ async def add_admin_cmd(message: Message):
 
 @admin_router.message(Command("unadmin"))
 async def unadmin_cmd(message: Message, state: FSMContext):
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    # Faqat asosiy egasi (ADMIN_ID) adminni o'chira oladi
+    if message.from_user.id != ADMIN_ID:
         return
 
     await state.set_state(UnadminState.waiting_for_id)
-    await message.answer("Adminlikdan olib tashlamoqchi bo'lgan foydalanuvchining ID'sini yuboring:")
+    await message.answer("Adminlikdan olib tashlamoqchi bo'lgan foydalanuvchining ID'sini yuboring (bekor qilish uchun /cancel yuboring):")
+
+
+@admin_router.message(UnadminState.waiting_for_id, Command("cancel"))
+async def cancel_unadmin(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Amal bekor qilindi.")
 
 
 @admin_router.message(UnadminState.waiting_for_id)
 async def process_unadmin_id(message: Message, state: FSMContext):
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    if message.from_user.id != ADMIN_ID:
         await state.clear()
         return
 
@@ -105,7 +113,7 @@ async def process_unadmin_id(message: Message, state: FSMContext):
 
 @admin_router.message(Command("rekads"))
 async def send_ads_cmd(message: Message, bot: Bot):
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    if not is_admin(message.from_user.id):
         return
 
     if not message.reply_to_message:
@@ -127,7 +135,7 @@ async def send_ads_cmd(message: Message, bot: Bot):
 
 @admin_router.message(Command("rekpeople"))
 async def send_rek_people_cmd(message: Message, bot: Bot):
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    if not is_admin(message.from_user.id):
         return
 
     args = message.text.split()
@@ -157,7 +165,7 @@ async def send_rek_people_cmd(message: Message, bot: Bot):
 
 @admin_router.message(Command("deleteads"))
 async def delete_ads_cmd(message: Message, bot: Bot):
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    if not is_admin(message.from_user.id):
         return
 
     ads = get_and_clear_last_ads()
