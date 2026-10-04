@@ -10,7 +10,7 @@ from config import ADMIN_ID
 
 router = Router()
 
-# ISO til kodlarini siz taqdim etgan bayroq va 3 harfli qisqartmalarga moslash
+# ISO til kodlarini bayroq va 3 harfli qisqartmalarga moslash
 LANG_COUNTRY_MAP = {
     'de': '🇩🇪 DEU',
     'en': '🏴󠁧󠁢󠁥󠁮󠁧󠁿 ENG',
@@ -79,6 +79,18 @@ class UserStates(StatesGroup):
     waiting_for_suggestion = State()
 
 
+# Guruhga qo'shish tugmasini yaratuvchi yordamchi funksiya
+def get_add_to_group_kb(bot_username: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="+ Guruhga qo'shish",
+                url=f"https://t.me/{bot_username}?startgroup=true"
+            )
+        ]
+    ])
+
+
 @router.message(Command("start"))
 async def start_cmd(message: Message):
     add_user(message.from_user.id)
@@ -92,15 +104,30 @@ async def start_cmd(message: Message):
 
 
 @router.callback_query(F.data.startswith("set_lang_"))
-async def set_lang_callback(call: CallbackQuery):
+async def set_lang_callback(call: CallbackQuery, bot: Bot):
     lang = call.data.split("_")[2]
     set_user_lang(call.from_user.id, lang)
 
-    first_name = call.from_user.first_name
-    user_id = call.from_user.id
+    full_name = call.from_user.full_name
+    bot_info = await bot.get_me()
 
-    text = f"Salom <a href='tg://user?id={user_id}'>{first_name}</a>! 👋\nMenga istalgan tilda matn yuboring, men uni O'zbek tiliga tarjima qilaman."
-    await call.message.edit_text(text, parse_mode="HTML")
+    text = (
+        f"Salom {full_name}! 👋\n"
+        f"Menga istalgan tilda matn yuboring, men uni O'zbek tiliga tarjima qilaman.\n"
+        f"Bot kanali: @Lingouzb"
+    )
+    await call.message.edit_text(text, reply_markup=get_add_to_group_kb(bot_info.username))
+
+
+@router.message(Command("guruh"))
+async def guruh_cmd(message: Message, bot: Bot):
+    add_user(message.from_user.id)
+    bot_info = await bot.get_me()
+    text = (
+        "Bu bot orqali siz guruhdagi matnlarni ham tarjima qilishingiz mumkin, "
+        "Botni guruhga admin sifati qoshing va kerakli matnga /tarjima buyrugini yuboring ."
+    )
+    await message.answer(text, reply_markup=get_add_to_group_kb(bot_info.username))
 
 
 @router.message(Command("donate"))
@@ -196,9 +223,9 @@ async def admin_reply_handler(message: Message, bot: Bot):
         await message.reply(f"Xatolik yuz berdi: {e}")
 
 
-# Guruhda /tarjima buyrug'i reply qilinganda
+# /tarjima buyrug'i tekshiruvi
 @router.message(Command("tarjima"))
-async def group_translate(message: Message):
+async def group_translate(message: Message, bot: Bot):
     if message.chat.type in ['group', 'supergroup']:
         add_group(message.chat.id, message.chat.title)
 
@@ -206,8 +233,11 @@ async def group_translate(message: Message):
     if message.reply_to_message:
         target_text = message.reply_to_message.text or message.reply_to_message.caption
 
+    # Agar reply qilinmagan bo'lsa yoki shaxsiy chatda yuborilgan bo'lsa
     if not target_text:
-        await message.reply("Iltimos, tarjima qilish uchun biror matnli xabarga reply qilib /tarjima yuboring!")
+        bot_info = await bot.get_me()
+        text = "Bu buyrug'ni guruhda kerakli matnga reply qilib yuboring va bot o'sha matnni Tarjima qiladi."
+        await message.reply(text, reply_markup=get_add_to_group_kb(bot_info.username))
         return
 
     translated, lang_code = await translate_text(target_text, target_script='latin')
