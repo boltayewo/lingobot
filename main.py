@@ -4,17 +4,13 @@ import logging
 from aiohttp import web
 from aiogram import Bot, Dispatcher
 
-# Config va Router'larni import qilish
 from config import BOT_TOKEN
 from admin import admin_router
+# Agar tarjima uchun routeringiz bo'lsa, uni ham import qiling (masalan):
+# from translator import user_router
 
-
-# Agar sizda boshqa routerlar ham bo'lsa (masalan: user_router, translator_router), ularni ham shu yerda import qiling
-
-# UptimeRobot ping yuborganda 200 OK qaytaruvchi handler
 async def handle_ping(request):
     return web.Response(text="Bot is running!")
-
 
 async def main():
     logging.basicConfig(level=logging.INFO)
@@ -24,9 +20,9 @@ async def main():
 
     # Routerlarni ulash
     dp.include_router(admin_router)
-    # dp.include_router(boshqa_router)  # Boshqa routerlaringiz bo'lsa ularni ham shu yerga qo'shasiz
+    # dp.include_router(user_router)  # Boshqa routeringiz bo'lsa, buni ham ulang
 
-    # Render PORT'i uchun aiohttp web serverini ishga tushirish
+    # Render PORT'i uchun web serverni ishga tushirish
     app = web.Application()
     app.router.add_get("/", handle_ping)
 
@@ -38,7 +34,6 @@ async def main():
 
     # Telegram bot polling rejimini boshlash
     await dp.start_polling(bot)
-
 
 if __name__ == "__main__":
     asyncio.run(main())
