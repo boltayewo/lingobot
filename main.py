@@ -6,8 +6,9 @@ from aiogram import Bot, Dispatcher
 
 from config import BOT_TOKEN
 from admin import admin_router
+# Foydalanuvchi routerini import qiling (faylingiz nomiga qarab, masalan: handlers yoki user)
+from handlers import router as user_router
 
-# GET, HEAD va boshqa barcha HTTP so'rovlariga javob beradi
 async def handle_ping(request):
     return web.Response(text="Bot is running!")
 
@@ -17,10 +18,11 @@ async def main():
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
 
+    # Routerlarni ulash (Ikkala router ham ulangan bo'lishi shart!)
     dp.include_router(admin_router)
+    dp.include_router(user_router)
 
     app = web.Application()
-    # add_get o'rniga add_route("*", ...) qo'yildi
     app.router.add_route("*", "/", handle_ping)
 
     port = int(os.environ.get("PORT", 8080))
