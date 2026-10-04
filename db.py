@@ -176,3 +176,10 @@ def get_and_clear_last_ads():
     conn.commit()
     conn.close()
     return ads
+def remove_admin(user_id: int):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM admins WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return True
