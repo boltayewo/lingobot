@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher
 from config import BOT_TOKEN
 from admin import admin_router
 
-# GET va HEAD so'rovlariga javob beruvchi handler
+# GET, HEAD va boshqa barcha HTTP so'rovlariga javob beradi
 async def handle_ping(request):
     return web.Response(text="Bot is running!")
 
@@ -20,7 +20,7 @@ async def main():
     dp.include_router(admin_router)
 
     app = web.Application()
-    # add_get o'rniga add_route("*", ...) qilsangiz GET, HEAD va boshqa barcha pinglarni qabul qiladi
+    # add_get o'rniga add_route("*", ...) qo'yildi
     app.router.add_route("*", "/", handle_ping)
 
     port = int(os.environ.get("PORT", 8080))
