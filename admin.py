@@ -19,6 +19,9 @@ from db import (
 
 admin_router = Router()
 
+# ADMIN_ID har doim int turida bo'lishini ta'minlaymiz
+OWNER_ID = int(ADMIN_ID)
+
 
 class UnadminState(StatesGroup):
     waiting_for_id = State()
@@ -32,12 +35,12 @@ async def bot_users_cmd(message: Message):
     s = get_user_stats()
     msg = (
         f"👥 <b>User Statistics</b>\n\n"
-        f"Total users: {s['total']}\n"
-        f"Blocked (blocked the bot): {s['blocked']}\n\n"
-        f"📅 New today: {s['today']}\n"
-        f"📅 New this week: {s['week']}\n"
-        f"📅 New this month: {s['month']}\n"
-        f"📅 New this year: {s['year']}"
+        f"Total users: {s.get('total', 0)}\n"
+        f"Blocked (blocked the bot): {s.get('blocked', 0)}\n\n"
+        f"📅 New today: {s.get('today', 0)}\n"
+        f"📅 New this week: {s.get('week', 0)}\n"
+        f"📅 New this month: {s.get('month', 0)}\n"
+        f"📅 New this year: {s.get('year', 0)}"
     )
     await message.answer(msg, parse_mode="HTML")
 
@@ -60,8 +63,9 @@ async def bot_groups_cmd(message: Message):
 
 @admin_router.message(Command("addadmin"))
 async def add_admin_cmd(message: Message):
-    # Faqat asosiy egasi (ADMIN_ID) yangi admin qo'sha oladi
-    if message.from_user.id != ADMIN_ID:
+    # Faqat asosiy egasi (OWNER_ID) yangi admin qo'sha oladi
+    if message.from_user.id != OWNER_ID:
+        await message.answer("Sizda ushbu buyruqni bajarish uchun huquq yo'q!")
         return
 
     args = message.text.split()
@@ -80,8 +84,9 @@ async def add_admin_cmd(message: Message):
 
 @admin_router.message(Command("unadmin"))
 async def unadmin_cmd(message: Message, state: FSMContext):
-    # Faqat asosiy egasi (ADMIN_ID) adminni o'chira oladi
-    if message.from_user.id != ADMIN_ID:
+    # Faqat asosiy egasi (OWNER_ID) adminni o'chira oladi
+    if message.from_user.id != OWNER_ID:
+        await message.answer("Sizda ushbu buyruqni bajarish uchun huquq yo'q!")
         return
 
     await state.set_state(UnadminState.waiting_for_id)
@@ -96,7 +101,7 @@ async def cancel_unadmin(message: Message, state: FSMContext):
 
 @admin_router.message(UnadminState.waiting_for_id)
 async def process_unadmin_id(message: Message, state: FSMContext):
-    if message.from_user.id != ADMIN_ID:
+    if message.from_user.id != OWNER_ID:
         await state.clear()
         return
 
@@ -127,6 +132,7 @@ async def send_ads_cmd(message: Message, bot: Bot):
             sent = await message.reply_to_message.copy_to(chat_id=uid)
             save_sent_ad(uid, sent.message_id)
             count += 1
+            await asyncio.sleep(0.05)  # Telegram spam limitiga tushmaslik uchun kichik kechikish
         except Exception:
             pass
 
@@ -149,6 +155,10 @@ async def send_rek_people_cmd(message: Message, bot: Bot):
 
     limit = int(args[1])
     users = get_all_users()
+    if not users:
+        await message.answer("Foydalanuvchilar topilmadi.")
+        return
+
     target_users = random.sample(users, min(limit, len(users)))
 
     count = 0
@@ -157,6 +167,7 @@ async def send_rek_people_cmd(message: Message, bot: Bot):
             sent = await message.reply_to_message.copy_to(chat_id=uid)
             save_sent_ad(uid, sent.message_id)
             count += 1
+            await asyncio.sleep(0.05)
         except Exception:
             pass
 
@@ -169,11 +180,16 @@ async def delete_ads_cmd(message: Message, bot: Bot):
         return
 
     ads = get_and_clear_last_ads()
+    if not ads:
+        await message.answer("O'chirish uchun oxirgi reklama xabarlari topilmadi.")
+        return
+
     count = 0
     for uid, msg_id in ads:
         try:
             await bot.delete_message(chat_id=uid, message_id=msg_id)
             count += 1
+            await asyncio.sleep(0.05)
         except Exception:
             pass
 
