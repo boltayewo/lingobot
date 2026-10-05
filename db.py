@@ -1,11 +1,20 @@
 import sqlite3
 from datetime import datetime
+from config import ADMIN_ID
 
 DB_NAME = "database.db"
 
+# Asosiy admin ID sini har doim integerga o'giramiz
+MAIN_ADMIN_ID = int(ADMIN_ID)
+
+
+def get_connection():
+    # Database is locked xatosini oldini olish uchun timeout qo'shildi
+    return sqlite3.connect(DB_NAME, timeout=10.0)
+
 
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
 
     # Users jadvali
@@ -47,7 +56,7 @@ def init_db():
 
 
 def add_user(user_id: int):
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("INSERT OR IGNORE INTO users (user_id, joined_at) VALUES (?, ?)", (user_id, now))
@@ -57,7 +66,7 @@ def add_user(user_id: int):
 
 
 def set_user_lang(user_id: int, lang: str):
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("UPDATE users SET lang = ? WHERE user_id = ?", (lang, user_id))
     conn.commit()
@@ -65,7 +74,7 @@ def set_user_lang(user_id: int, lang: str):
 
 
 def get_user_lang(user_id: int) -> str:
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT lang FROM users WHERE user_id = ?", (user_id,))
     res = cursor.fetchone()
@@ -74,7 +83,7 @@ def get_user_lang(user_id: int) -> str:
 
 
 def add_group(group_id: int, title: str):
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("INSERT OR REPLACE INTO groups (group_id, title) VALUES (?, ?)", (group_id, title))
     conn.commit()
@@ -82,7 +91,7 @@ def add_group(group_id: int, title: str):
 
 
 def get_all_groups():
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT group_id, title FROM groups")
     res = cursor.fetchall()
@@ -91,7 +100,7 @@ def get_all_groups():
 
 
 def set_user_blocked(user_id: int, is_blocked: int):
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("UPDATE users SET is_blocked = ? WHERE user_id = ?", (is_blocked, user_id))
     conn.commit()
@@ -99,7 +108,7 @@ def set_user_blocked(user_id: int, is_blocked: int):
 
 
 def get_all_users():
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT user_id FROM users")
     res = [r[0] for r in cursor.fetchall()]
@@ -108,7 +117,7 @@ def get_all_users():
 
 
 def get_user_stats():
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("SELECT COUNT(*) FROM users")
@@ -134,24 +143,34 @@ def get_user_stats():
         "total": total,
         "blocked": blocked,
         "today": today,
-        "week": today,  # Sodda statistika uchun
+        "week": today,
         "month": month,
         "year": year
     }
 
 
 def add_admin(user_id: int):
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("INSERT OR IGNORE INTO admins (user_id) VALUES (?)", (user_id,))
     conn.commit()
     conn.close()
 
 
-def is_admin(user_id: int, main_admin_id: int) -> bool:
-    if user_id == main_admin_id:
+def remove_admin(user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM admins WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return True
+
+
+# Chaqirishda 1 ta argument yuborilishi uchun parametri soddalashtirildi
+def is_admin(user_id: int) -> bool:
+    if int(user_id) == MAIN_ADMIN_ID:
         return True
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT user_id FROM admins WHERE user_id = ?", (user_id,))
     res = cursor.fetchone()
@@ -160,7 +179,7 @@ def is_admin(user_id: int, main_admin_id: int) -> bool:
 
 
 def save_sent_ad(user_id: int, message_id: int):
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("INSERT INTO sent_ads (user_id, message_id) VALUES (?, ?)", (user_id, message_id))
     conn.commit()
@@ -168,7 +187,7 @@ def save_sent_ad(user_id: int, message_id: int):
 
 
 def get_and_clear_last_ads():
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT user_id, message_id FROM sent_ads")
     ads = cursor.fetchall()
@@ -176,10 +195,3 @@ def get_and_clear_last_ads():
     conn.commit()
     conn.close()
     return ads
-def remove_admin(user_id: int):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM admins WHERE user_id = ?", (user_id,))
-    conn.commit()
-    conn.close()
-    return True
