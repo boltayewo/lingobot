@@ -6,22 +6,29 @@ from aiogram import Bot, Dispatcher
 
 from config import BOT_TOKEN
 from admin import admin_router
-# Foydalanuvchi routerini import qiling (faylingiz nomiga qarab, masalan: handlers yoki user)
 from handlers import router as user_router
 
+
+# Web server ping handler
 async def handle_ping(request):
     return web.Response(text="Bot is running!")
 
+
 async def main():
-    logging.basicConfig(level=logging.INFO)
+    # Loglarni sozlash
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    )
 
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
 
-    # Routerlarni ulash (Ikkala router ham ulangan bo'lishi shart!)
+    # Routerlarni ulash
     dp.include_router(admin_router)
     dp.include_router(user_router)
 
+    # Web serverni sozlash (cron-job.org va boshqa uptime monitorlar uchun)
     app = web.Application()
     app.router.add_route("*", "/", handle_ping)
 
@@ -31,7 +38,17 @@ async def main():
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
-    await dp.start_polling(bot)
+    logging.info(f"Web server {port}-portda ishga tushdi.")
+
+    try:
+        # Eski pending xabarlarni o'chirib tashlash va pollingni boshlash
+        await bot.delete_webhook(drop_pending_updates=True)
+        await dp.start_polling(bot)
+    finally:
+        # Bot to'xtatilganda sessiyalar va web-serverni yopish
+        await runner.cleanup()
+        await bot.session.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
